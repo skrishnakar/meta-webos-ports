@@ -1,0 +1,133 @@
+From b70cd5bb68d3f95b4daeedac1f13f791686296ac Mon Sep 17 00:00:00 2001
+From: Martin Jansa <Martin.Jansa@gmail.com>
+Date: Mon, 22 Jul 2013 21:51:54 +0200
+Subject: [PATCH] configure: check wayland, egl, xkbcommon, wayland-egl by
+ separate checks
+
+* SDL_VIDEO_DRIVER_WAYLAND was defined even without pkg-config files
+  for any wayland component and build was failing a bit later, because
+  CFLAGS, LDFLAGS were missing
+---
+ configure.in | 57 +++++++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 51 insertions(+), 6 deletions(-)
+
+diff --git a/configure.in b/configure.in
+index 5f6a034..9ed3dc9 100644
+--- a/configure.in
++++ b/configure.in
+@@ -245,7 +245,7 @@ if test x$enable_libc = xyes; then
+     AC_CHECK_LIB(iconv, iconv_open, [LIBS="$LIBS -liconv"; EXTRA_LDFLAGS="$EXTRA_LDFLAGS -liconv"])
+     AC_CHECK_FUNCS(iconv)
+ 
+-    AC_CHECK_MEMBER(struct sigaction.sa_sigaction,[AC_DEFINE(HAVE_SA_SIGACTION)], ,[#include <signal.h>])
++    AC_CHECK_MEMBER(struct sigaction.sa_sigaction,[AC_DEFINE(HAVE_SA_SIGACTION, 1, [ ])], ,[#include <signal.h>])
+ fi
+ 
+ AC_CHECK_SIZEOF(void*)
+@@ -1029,7 +1029,7 @@ CheckWayland()
+ AC_HELP_STRING([--enable-video-wayland], [use Wayland video driver [[default=yes]]]),
+                   ,enable_video_wayland=yes)
+     if test x$enable_video = xyes -a x$enable_video_wayland = xyes; then
+-        AC_MSG_CHECKING(for Wayland support)
++        AC_MSG_CHECKING(for Wayland and xkbcommon headers)
+         video_wayland=no
+         AC_TRY_COMPILE([
+          #include <EGL/egl.h>
+@@ -1044,11 +1044,56 @@ AC_HELP_STRING([--enable-video-wayland], [use Wayland video driver [[default=yes
+         ])
+         AC_MSG_RESULT($video_wayland)
+         if test x$video_wayland = xyes; then
+-            AC_DEFINE(SDL_VIDEO_DRIVER_WAYLAND)
+-            SOURCES="$SOURCES $srcdir/src/video/wayland/*.c"
+-            EXTRA_CFLAGS="$EXTRA_CFLAGS $(pkg-config --cflags wayland-client wayland-egl wayland-cursor egl xkbcommon)"
+-            EXTRA_LDFLAGS="$EXTRA_LDFLAGS $(pkg-config --libs wayland-client wayland-egl wayland-cursor egl xkbcommon)"
+-            have_video=yes
++            WAYLAND_REQUIRED_VERSION=1.0
++            WAYLAND_EGL_REQUIRED_VERSION=0.1.0
++            XKBCOMMON_REQUIRED_VERSION=0.2
++            EGL_REQUIRED_VERSION=7.10
++            AC_PATH_PROG(PKG_CONFIG, pkg-config, no)
++            if test x$PKG_CONFIG != xno; then
++                AC_MSG_CHECKING(for Wayland $WAYLAND_REQUIRED_VERSION support)
++		have_wayland_pkg=no
++                if $PKG_CONFIG --atleast-pkgconfig-version 0.7 && $PKG_CONFIG --atleast-version $WAYLAND_REQUIRED_VERSION wayland-client wayland-cursor; then
++                    WAYLAND_CFLAGS=`$PKG_CONFIG --cflags wayland-client wayland-cursor`
++                    WAYLAND_LDFLAGS=`$PKG_CONFIG --libs wayland-client wayland-cursor`
++                    have_wayland_pkg=yes
++                fi
++                AC_MSG_RESULT($have_wayland_pkg)
++                AC_MSG_CHECKING(for xkbcommon $XKBCOMMON_REQUIRED_VERSION support)
++		have_xkbcommon_pkg=no
++                if test x$have_wayland_pkg = xyes; then
++                    if $PKG_CONFIG --atleast-pkgconfig-version 0.7 && $PKG_CONFIG --atleast-version $XKBCOMMON_REQUIRED_VERSION xkbcommon; then
++                        XKBCOMMON_CFLAGS=`$PKG_CONFIG --cflags xkbcommon`
++                        XKBCOMMON_LDFLAGS=`$PKG_CONFIG --libs xkbcommon`
++                        have_xkbcommon_pkg=yes
++                    fi
++                fi
++                AC_MSG_RESULT($have_xkbcommon_pkg)
++                AC_MSG_CHECKING(for EGL $EGL_REQUIRED_VERSION support)
++		have_egl_pkg=no
++                if test x$have_wayland_pkg = xyes -a x$have_xkbcommon_pkg = xyes; then
++                    if $PKG_CONFIG --atleast-pkgconfig-version 0.7 && $PKG_CONFIG --atleast-version $EGL_REQUIRED_VERSION egl; then
++                        EGL_CFLAGS=`$PKG_CONFIG --cflags egl`
++                        EGL_LDFLAGS=`$PKG_CONFIG --libs egl`
++                        have_egl_pkg=yes
++                    fi
++                fi
++                AC_MSG_RESULT($have_egl_pkg)
++                AC_MSG_CHECKING(for Wayland EGL $WAYLAND_EGL_REQUIRED_VERSION support)
++		have_wayland_egl_pkg=no
++                if $PKG_CONFIG --atleast-pkgconfig-version 0.7 && $PKG_CONFIG --atleast-version $WAYLAND_EGL_REQUIRED_VERSION wayland-client wayland-cursor; then
++                    WAYLAND_EGL_CFLAGS=`$PKG_CONFIG --cflags wayland-egl`
++                    WAYLAND_EGL_LDFLAGS=`$PKG_CONFIG --libs wayland-egl`
++                    have_wayland_egl_pkg=yes
++                fi
++                AC_MSG_RESULT($have_wayland_egl_pkg)
++                if test x$have_wayland_pkg = xyes -a x$have_xkbcommon_pkg = xyes -a x$have_egl_pkg = xyes -a x$have_wayland_egl_pkg = xyes; then
++                    have_video=yes
++                    AC_DEFINE(SDL_VIDEO_DRIVER_WAYLAND, 1, [ ])
++                    SOURCES="$SOURCES $srcdir/src/video/wayland/*.c"
++                    EXTRA_CFLAGS="$EXTRA_CFLAGS $WAYLAND_CFLAGS $XKBCOMMON_CFLAGS $EGL_CFLAGS $WAYLAND_EGL_CFLAGS"
++                    EXTRA_LDFLAGS="$EXTRA_LDFLAGS $WAYLAND_LDFLAGS $XKBCOMMON_LDFLAGS $EGL_LDFLAGS $WAYLAND_EGL_LDFLAGS"
++                fi
++            fi
+         fi
+     fi
+ }
+@@ -1170,7 +1215,7 @@ AC_HELP_STRING([--enable-x11-shared], [dynamically load X11 support [[default=ma
+             ],[
+             ],[
+             have_const_param_XextAddDisplay=yes
+-            AC_DEFINE(SDL_VIDEO_DRIVER_X11_CONST_PARAM_XEXTADDDISPLAY)
++            AC_DEFINE(SDL_VIDEO_DRIVER_X11_CONST_PARAM_XEXTADDDISPLAY, 1, [ ])
+             ])
+             AC_MSG_RESULT($have_const_param_XextAddDisplay)
+ 
+@@ -1188,7 +1233,7 @@ XGetEventData(display, cookie);
+ XFreeEventData(display, cookie);
+             ],[
+                 have_XGenericEvent=yes
+-                AC_DEFINE(SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS)
++                AC_DEFINE(SDL_VIDEO_DRIVER_X11_SUPPORTS_GENERIC_EVENTS, 1, [ ])
+             ])
+             AC_MSG_RESULT($have_XGenericEvent)
+ 
+@@ -1290,7 +1335,7 @@ XIAllowTouchEvents(Display *a,int b,unsigned int c,Window d,int f)
+ }
+             	],[
+             	have_xinput2_multitouch=yes
+-            	AC_DEFINE(SDL_VIDEO_DRIVER_X11_XINPUT2_SUPPORTS_MULTITOUCH)
++            	AC_DEFINE(SDL_VIDEO_DRIVER_X11_XINPUT2_SUPPORTS_MULTITOUCH, 1, [ ])
+             	])
+             	AC_MSG_RESULT($have_xinput2_multitouch)
+             fi
+@@ -1920,7 +1965,7 @@ AC_HELP_STRING([--enable-pthread-sem], [use pthread semaphores [[default=yes]]])
+                   sem_timedwait(NULL, NULL);
+                 ],[
+                 have_sem_timedwait=yes
+-                AC_DEFINE(HAVE_SEM_TIMEDWAIT)
++                AC_DEFINE(HAVE_SEM_TIMEDWAIT, 1, [ ])
+                 ])
+                 AC_MSG_RESULT($have_sem_timedwait)
+             fi
