@@ -1,0 +1,58 @@
+From 3d4de8a9c8c829c88666adf16b9d8459a9207c16 Mon Sep 17 00:00:00 2001
+From: Simon Busch <morphis@gravedo.de>
+Date: Wed, 21 Aug 2013 13:11:57 +0200
+Subject: [PATCH 2/2] Disable use of ubuntu platform api
+
+Upstream-Status: Inappropiate [configuration]
+
+Signed-off-by: Simon Busch <morphis@gravedo.de>
+---
+ src/aalimagecapturecontrol.cpp | 4 ++++
+ src/src.pro                    | 1 -
+ 2 files changed, 4 insertions(+), 1 deletion(-)
+
+diff --git a/src/aalimagecapturecontrol.cpp b/src/aalimagecapturecontrol.cpp
+index 5579b4f..8526869 100644
+--- a/src/aalimagecapturecontrol.cpp
++++ b/src/aalimagecapturecontrol.cpp
+@@ -32,7 +32,9 @@
+ 
+ #include <cmath>
+ 
++#if 0
+ #include <ubuntu/application/ui/display.h>
++#endif
+ 
+ AalImageCaptureControl::AalImageCaptureControl(AalCameraService *service, QObject *parent)
+    : QCameraImageCaptureControl(parent),
+@@ -195,6 +197,7 @@ QSize AalImageCaptureControl::chooseOptimalSize(const QList<QSize> &sizes)
+ 
+ float AalImageCaptureControl::getScreenAspectRatio()
+ {
++#if 0
+     // Only get the screen aspect ratio once, otherwise use the cached copy
+     if (m_screenAspectRatio == 0.0) {
+         // Get screen resolution.
+@@ -208,6 +211,7 @@ float AalImageCaptureControl::getScreenAspectRatio()
+         m_screenAspectRatio = (kScreenWidth > kScreenHeight) ?
+             ((float)kScreenWidth / (float)kScreenHeight) : ((float)kScreenHeight / (float)kScreenWidth);
+     }
++#endif
+ 
+     return m_screenAspectRatio;
+ }
+diff --git a/src/src.pro b/src/src.pro
+index 5c04b02..b3145cf 100644
+--- a/src/src.pro
++++ b/src/src.pro
+@@ -12,7 +12,6 @@ INCLUDEPATH += /usr/include/libqtubuntu-media-signals
+ LIBS += \
+     -lcamera \
+     -lmedia \
+-    -lubuntu_application_api \
+     -lqtubuntu-media-signals
+ 
+ OTHER_FILES += aalcamera.json
+-- 
+1.8.1.2
+
