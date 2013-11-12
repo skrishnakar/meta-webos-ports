@@ -1,0 +1,26 @@
+From fd8a7b5a1ceb034c4a13d9e6883002e010075750 Mon Sep 17 00:00:00 2001
+From: Kalle Vahlman <kalle.vahlman@movial.com>
+Date: Tue, 9 Jul 2013 08:32:41 +0000
+Subject: [PATCH 1/2] Use RGBA format in getDrawBufferImage()
+
+Signed-off-by: Kalle Vahlman <kalle.vahlman@movial.com>
+---
+ retrace/glstate_images.cpp | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/retrace/glstate_images.cpp b/retrace/glstate_images.cpp
+index 45d77eb..c82e279 100644
+--- a/retrace/glstate_images.cpp
++++ b/retrace/glstate_images.cpp
+@@ -769,7 +769,7 @@ getFramebufferAttachmentDesc(Context &context, GLenum target, GLenum attachment,
+ 
+ image::Image *
+ getDrawBufferImage() {
+-    GLenum format = GL_RGB;
++    GLenum format = GL_RGBA;
+     GLint channels = _gl_format_channels(format);
+     if (channels > 4) {
+         return NULL;
+-- 
+1.8.3-rc3
+
