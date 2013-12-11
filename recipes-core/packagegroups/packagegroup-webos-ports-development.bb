@@ -22,7 +22,6 @@ RDEPENDS_${PN} = " \
   opkg-utils \
   bc \
   ${VALGRIND} \
-  apitrace \
   \
   alsa-utils-alsamixer \
   alsa-utils-alsactl \
